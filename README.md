@@ -5,14 +5,28 @@ This package provides a deep learning framework to predict deformation of whole 
 <img width="1961" alt="network2" src="https://user-images.githubusercontent.com/31931939/184846001-eb3b9442-ae46-4152-a3dc-791e1ccdf946.png">
 
 
-## Installation
+## Installation ![Python versions](https://img.shields.io/badge/python-3.7-blue) ![CUDA versions](https://img.shields.io/badge/cuda-10.0-green) ![CUDA versions](https://img.shields.io/badge/cuda-10.1-green) ![Ubuntu versions](https://img.shields.io/badge/ubuntu-20.04.6.LTS-orange)
 To download our source code with submodules, please run 
 ```
-git clone --recurse-submodules https://github.com/fkong7/HeartDeformNets.git
+git clone --recurse-submodules https://github.com/charlenemauger1/HeartDeformNets.git
 ```
 The dependencies of our implementation can be installed by running the following command.
 ```
+cd HeartDeformNets
+conda create -n deformnet python=3.7
+conda activate deformnet
 pip install -r requirements.txt
+```
+
+If the tensorflow-gpu version cannot be installed, try terminating the above shell script and run the following command:
+
+```
+pip install tensorflow-gpu==1.15.5
+```
+Tensorflow 1.15 expects cuda 10.0 but you can also make it work with cuda 10.1 by installing the following packages with Anaconda:
+```
+conda install cudatoolkit=10.0
+conda install cudnn=7.6.5
 ```
 ## Template Meshes
 
@@ -26,12 +40,15 @@ Those whole heart templates were created from the ground truth segmentation of a
 
 - Compile the C++ code for computing biharmonc coordinates in `templates/bc` by 
 ```
+cd templates/bc
 mkdir build && cd build && cmake .. && make
 ```
 - Specify the `output_dir` and the path of the segmentation file `seg_fn` in `create_template.sh` and then 
 ```
 source create_template.sh
 ```
+
+If you get the warning <code style="color : darkorange">[C6ECF740] vtkMath.cxx:596 WARN| Unable to factor linear system</code> when running `source create_template.sh`, it can be ignored. The warning message is from mesh decimation.
 
 ## Evaluation
 
@@ -53,7 +70,88 @@ Some notes about the config options:
 
 ## Training
 
+### Data Preparation
+The data preparation code is copied from the author's [MeshDeformNet](https://github.com/fkong7/MeshDeformNet.git) repository.
+
+Ensure you have a directory structure as follows (e.g., for the __MMWHS__ dataset):
+```
+|-- MMWHS
+    |-- nii
+        |-- ct_train
+            |-- 01.nii.gz
+            |-- 02.nii.gz
+            |-- ...
+        |-- ct_train_seg
+            |-- 01.nii.gz
+            |-- 02.nii.gz
+            |-- ...
+        |-- ct_val
+        |-- ct_val_seg
+        |-- mr_train
+        |-- mr_train_seg
+        |-- mr_val
+        |-- mr_val_seg
+```
+_I have all images and labels foreground cropped, resized, and padded to 128x128x128. Not sure what will happen if not doing so._
+
+The data preparation steps are as follows:
+- If data augmentation is preferred, you need the __mpi4py__ (Python bindings for MPI) installed. Here is how to install it on a Linux machine.
+    - Install MPI implementation:
+        ```
+        sudo apt update
+        sudo apt install libopenmpi-dev
+        ```
+    - Install mpi4py (if you are in the `deformnet` environment):
+        ```
+        pip install mpi4py
+        ```
+- Run data augmentation with the following command (I did this by running on a local machine, but if you are doing this with SSH on a remote machine, you need to install __X11__ and __xauth__):
+    ```
+    mpirun -n 4 python data/data_augmentation.py \
+        --im_dir /path/to/MMWHS/nii/ct_train \
+        --seg_dir /path/to/MMWHS/nii/ct_train_seg \
+        --out_dir /path/to/MMWHS/nii_augmented \
+        --modality ct \ # ct or mr
+        --mode train \  # train or val
+        --num 10        # number of augmented copies per image, 10 for ct and 20 for mr
+    ```
+
+    Note: I used `-n 4` instead of `-n 20` as the author suggested in __MeshDeformNet__ due to limited resources on my local machine.
+- Do the same for `val` data if needed. The above command will produce a new folder `nii_augmented` in the `MMWHS` directory.
+- Preprocess data by applying intensity normalization and resizing. Results will be saved as TFRecords files in a new folder `tfrecords` in the `MMWHS` directory.
+
+    ```
+    python data/data2tfrecords.py \
+        --folder /path/to/MMWHS/nii \
+        --modality ct \              # ct or mr
+        --size 128 128 128 \         # image dimensions for training
+        --folder_postfix _train \    # _train or _val, i.e. will process the images/segmentation in ct_train and ct_train_seg
+        --deci_rate 0  \             # decimation rate on ground truth surface meshes
+        --smooth_ite 50 \            # Laplacian smoothing on ground truth surface meshes
+        --out_folder /path/to/MMWHS/tfrecords \
+        --seg_id 1                   # segmentation ids, 1-7 for seven cardiac structures
+    ```
+- Do the same for augmented data in the `nii_augmented` folder as above, if you are using data augmentation.
+
+### Compile nndistance Loss
+
+If you do not see a `tf_nndistance_so.so` file in the `external/` directory, which is a required Python module compiled in C++ for training the network, compile the module by running the following command:
+```
+cd external/
+make
+cd ..
+```
+make sure you change the paths to match your system.
+
+If you are getting <code style="color : red">/usr/bin/ld: cannot find -ltensorflow_framework</code>, you need to create a symbolic link. In my case, the file libtensorflow_framework.so.1 existed inside my TF_LIB directory instead of libtensorflow_framework.so. In order to solve this issue, I had to create a symbolic link as follows:
+
+```
+sudo ln -s /home/cm21/anaconda3/envs/deformnet37/lib/python3.7/site-packages/tensorflow_core/libtensorflow_framework.so.1 /usr/lib/libtensorflow_framework.so
+sudo ldconfig
+```
+
+### Training
 To train our network model, please run the following command.
 ```
-python train.py --config config/task2_wh.yaml
- ```
+python train.py --config config/task2_lv_myo.yaml
+```

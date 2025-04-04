@@ -1,7 +1,7 @@
-nvcc = /global/software/sl-7.x86_64/modules/langs/cuda/10.0/bin/nvcc
-cudalib =/global/software/sl-7.x86_64/modules/langs/cuda/10.0/lib64
-tensorflow = /global/home/users/fanwei_kong/tf1/lib/python3.6/site-packages/tensorflow/include
-TF_LIB= /global/home/users/fanwei_kong/tf1/lib/python3.6/site-packages/tensorflow
+nvcc=/usr/local/cuda-10.1/bin/nvcc
+cudalib=/usr/local/cuda-10.1/lib64
+tensorflow=/home/cm21/anaconda3/envs/deformnet37/lib/python3.7/site-packages/tensorflow_core/include
+TF_LIB=/home/cm21/anaconda3/envs/deformnet37/lib/python3.7/site-packages/tensorflow_core
 all: tf_nndistance_so.so tf_nndistance_g.cu.o 
 
 tf_nndistance_so.so: tf_nndistance_g.cu.o tf_nndistance.cpp

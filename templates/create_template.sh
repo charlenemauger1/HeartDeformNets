@@ -1,8 +1,8 @@
-output_dir=train_dat/wh_noerode
-seg_fn=segmentation/wh.nii.gz
+output_dir=train_dat/lv_myo_noerode
+seg_fn=segmentation/lv_myo.nii
 target_node_num=3260
 num_handles_arr=(75 600)
-num_mesh=7
+num_mesh=1
 
 shape_deform_dir=bc/build
 

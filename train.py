@@ -21,7 +21,7 @@ import functools
 import pickle
 import argparse
 import numpy as np
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
 print("TENSORFLOW VERSION: ", tf.__version__)
