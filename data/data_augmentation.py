@@ -14,7 +14,7 @@
 import os
 import sys
 import numpy as np
-from copy import deepcopy
+#from copy import deepcopy
 import argparse
 try:
     from mpi4py import MPI
@@ -36,7 +36,7 @@ def generate_seg_aug_dataset(im_dir, mask_dir, out_dir, modality, mode='train', 
     
     import glob
     import SimpleITK as sitk
-    from pre_process import AffineTransform, NonlinearTransform, resample_spacing
+    from pre_process import AffineTransform, NonlinearTransform#, resample_spacing
 
   
     if rank == 0:
@@ -89,6 +89,7 @@ def generate_seg_aug_dataset(im_dir, mask_dir, out_dir, modality, mode='train', 
         params_bspline['mask'] = mask
         params_affine['mask'] = mask
         
+        params_bspline['output_path'] = './b_spline.nii.gz'
         affine = AffineTransform(image, **params_affine)
         bspline = NonlinearTransform(image, **params_bspline)
         

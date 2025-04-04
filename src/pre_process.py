@@ -276,10 +276,11 @@ class NonlinearTransform(SpatialTransform):
     '''
     b-spline transform 
     '''
-    def __init__(self, image, num_ctrl_pts, stdev, mask=None, mesh=None):
+    def __init__(self, image, num_ctrl_pts, stdev, mask=None, mesh=None, output_path='./'):
         super(NonlinearTransform, self).__init__(image, mask, mesh)
         self.num_ctrl_pts = num_ctrl_pts
         self.stdev = stdev
+        self.output_path = output_path
 
     def bspline(self):
         from scipy.interpolate import RegularGridInterpolator
@@ -295,7 +296,7 @@ class NonlinearTransform(SpatialTransform):
         d[:, -2:, :, :] = 0.
         d[:, :, :2, :] = 0.
         d[:, :, -2:, :] = 0.
-        sitk.WriteImage(sitk.GetImageFromArray(d[:,:,:,0]), '/Users/fanweikong/Documents/Modeling/HeartDeepFFD/output/debug/b_spline.nii.gz')
+        sitk.WriteImage(sitk.GetImageFromArray(d[:,:,:,0]), self.output_path)
         
         params = np.asarray(self.transform.GetParameters(), dtype=np.float64)
         params += d.flatten(order='F')

@@ -1,25 +1,25 @@
 network:
   num_blocks: 3
-  num_seg_class: 1
+  num_seg_class: 2 # 0: background, 1: myocardium
   rescale_factor: 0.1
-  input_size:
+  input_size: # input dimension
     - 128
     - 128
     - 128
   hidden_dim: 128
-  coord_emb_dim: 192
+  coord_emb_dim: 192 #192
 prediction:
-  model_weights_filename: pretrained/task2_wh.hdf5
+  model_weights_filename: /home/cm21/Documents/GitHub/HeartDeformNets/output/task2/test/weights_gcn.hdf5
   image:
     image_folder: examples/images
     image_folder_attr: _test
     modality:
       - ct
   mesh:
-    mesh_dat_filemame: templates/train_dat/lv_myo_noerode/04_04_2025_14_41_33_bbw.dat
-    mesh_tmplt_filename: templates/train_dat/lv_myo_noerode/04_04_2025_14_41_33_template.vtp
+    mesh_dat_filemame: templates/train_dat/lv_myo_noerode/04_04_2025_15_15_27_bbw.dat
+    mesh_tmplt_filename: templates/train_dat/lv_myo_noerode/04_04_2025_15_15_27_template.vtp
     swap_bc_coordinates: null
-    num_mesh: 7
+    num_mesh: 1
   output_folder: output/task2
   mode: test
 train:
@@ -28,23 +28,23 @@ train:
     num_epoch: 300
     pre_train: null
     pre_train_unet: null
-    mesh_dat_filemame: templates/train_dat/lv_myo_noerode/04_04_2025_15_15_27_bbw.dat
+    mesh_dat_filemame: templates/train_dat/lv_myo_noerode/04_04_2025_15_15_27_bbw.dat # template mesh data
     data:
         train_img_folder:
-            - /home/cm21/mnt/rds/DeformNet/MMWHS/tfrecords_augmented/
+            - /home/cm21/Documents/data/ftrecords_augmented/
         val_img_folder: 
-            - /home/cm21/mnt/rds/DeformNet/MMWHS/tfrecords/
+            - /home/cm21/Documents/data/ftrecords/
         file_pattern: '*.tfrecords'
-        train_sub_folder_attr: ['']
-        val_sub_folder_attr: ['']
-        train_sub_folder_weights: [1.]
-        val_sub_folder_weights: [1.] 
-        mesh_ids: [0]
+        train_sub_folder_attr: [''] # specify name of different validation dataset (e.g. '' _aug for ct_train, ct_train_aug)
+        val_sub_folder_attr: [''] # specify names of different validation dataset (e.g. '' _aug for ct_val, ct_val_aug)
+        train_sub_folder_weights: [1.] # weights for different training dataset
+        val_sub_folder_weights: [1.] # weights for different validation dataset
+        mesh_ids: [0] # myocardium
         modality: 
             - ct
-        seed: 41
+        seed: 42
     loss:
-        seg_wt: 100
+        seg_wt: 10 # weight on segmentation loss, was 100
         geom_wt: [0.3, 0.46, 25.]
         mesh_wt: [0.5, 0.5, 0.5]
         chamfer_ratio: 1.

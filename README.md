@@ -58,7 +58,7 @@ We provide the pretrained network in `pretrained`.
 
 The config files for both tasks are stored in `config`. The first task uses a template mesh without pulmonary veins and vena cava geometries and the second task uses another template mesh with those structures so that the predictions can be used for CHD simulations. Please make sure to use the correct template mesh depending on the task. The template mesh can be generated from the previous steps using the corresponding segmentation files. After changing the pathnames in the config files, you can use `predict.py` with the following arguments to generate predictions. 
 ```
-python predict.py --config config/task2_wh.yaml
+python predict.py --config config/task2_lv_myo.yaml
 ```
 
 Some notes about the config options:
@@ -70,7 +70,7 @@ Some notes about the config options:
 
 ## Training
 
-### Data Preparation
+### Data Structure
 The data preparation code is copied from the author's [MeshDeformNet](https://github.com/fkong7/MeshDeformNet.git) repository.
 
 Ensure you have a directory structure as follows (e.g., for the __MMWHS__ dataset):
@@ -92,46 +92,35 @@ Ensure you have a directory structure as follows (e.g., for the __MMWHS__ datase
         |-- mr_val
         |-- mr_val_seg
 ```
-_I have all images and labels foreground cropped, resized, and padded to 128x128x128. Not sure what will happen if not doing so._
 
-The data preparation steps are as follows:
-- If data augmentation is preferred, you need the __mpi4py__ (Python bindings for MPI) installed. Here is how to install it on a Linux machine.
-    - Install MPI implementation:
-        ```
-        sudo apt update
-        sudo apt install libopenmpi-dev
-        ```
-    - Install mpi4py (if you are in the `deformnet` environment):
-        ```
-        pip install mpi4py
-        ```
-- Run data augmentation with the following command (I did this by running on a local machine, but if you are doing this with SSH on a remote machine, you need to install __X11__ and __xauth__):
-    ```
-    mpirun -n 4 python data/data_augmentation.py \
-        --im_dir /path/to/MMWHS/nii/ct_train \
-        --seg_dir /path/to/MMWHS/nii/ct_train_seg \
-        --out_dir /path/to/MMWHS/nii_augmented \
-        --modality ct \ # ct or mr
-        --mode train \  # train or val
-        --num 10        # number of augmented copies per image, 10 for ct and 20 for mr
-    ```
+*I have all images and labels foreground cropped, resized, and padded to 128x128x128. Not sure what will happen if not doing so.*
+### Data Augmentation
 
-    Note: I used `-n 4` instead of `-n 20` as the author suggested in __MeshDeformNet__ due to limited resources on my local machine.
-- Do the same for `val` data if needed. The above command will produce a new folder `nii_augmented` in the `MMWHS` directory.
-- Preprocess data by applying intensity normalization and resizing. Results will be saved as TFRecords files in a new folder `tfrecords` in the `MMWHS` directory.
+Data augmentation were applied on the training data. Specifically, we applied random scaling, random rotation, random shearing as well as elastic deformations. 
 
-    ```
-    python data/data2tfrecords.py \
-        --folder /path/to/MMWHS/nii \
-        --modality ct \              # ct or mr
-        --size 128 128 128 \         # image dimensions for training
-        --folder_postfix _train \    # _train or _val, i.e. will process the images/segmentation in ct_train and ct_train_seg
-        --deci_rate 0  \             # decimation rate on ground truth surface meshes
-        --smooth_ite 50 \            # Laplacian smoothing on ground truth surface meshes
-        --out_folder /path/to/MMWHS/tfrecords \
-        --seg_id 1                   # segmentation ids, 1-7 for seven cardiac structures
-    ```
-- Do the same for augmented data in the `nii_augmented` folder as above, if you are using data augmentation.
+```
+mpirun -n 20 python data/data_augmentation.py \
+    --im_dir  /path/to/image/data \
+    --seg_dir  /path/to/segmentation/data \
+    --out_dir  /path/to/output \
+    --modality ct \ # ct or mr
+    --mode val \ # train or val
+    --num 10 # number of augmented copies per image
+```
+### Data Pre-Processing
+
+The data pre-processing script will apply intensity normalization and resize the image data. The pre-processed images and segmentation will be converted to .tfrecords.
+
+```
+python data/data2tfrecords.py --folder /path/to/top/image/directory \
+    --modality ct mr \
+    --size 128 128 128 \ # image dimension for training
+    --folder_postfix _train \ # _train or _val, i.e. will process the images/segmentation in ct_train and ct_train_seg
+    --deci_rate 0  \ # decimation rate on ground truth surface meshes
+    --smooth_ite 50 \ # Laplacian smoothing on ground truth surface meshes
+    --out_folder /path/to/output \
+    --seg_id 1 2 3 4 5 6 7 # segmentation ids, 1-7 for seven cardiac structures here for example
+```
 
 ### Compile nndistance Loss
 
@@ -141,7 +130,7 @@ cd external/
 make
 cd ..
 ```
-make sure you change the paths to match your system.
+Please change the paths to the cuda and tf libraries in the Makefile to match with the locations on your system.
 
 If you are getting <code style="color : red">/usr/bin/ld: cannot find -ltensorflow_framework</code>, you need to create a symbolic link. In my case, the file libtensorflow_framework.so.1 existed inside my TF_LIB directory instead of libtensorflow_framework.so. In order to solve this issue, I had to create a symbolic link as follows:
 
@@ -154,4 +143,15 @@ sudo ldconfig
 To train our network model, please run the following command.
 ```
 python train.py --config config/task2_lv_myo.yaml
+```
+
+If you see at the start of training, 
+<code style="color : darkorange">[W tensorflow/stream_executor/cuda/redzone_allocator.cc:312] Not found: ./bin/ptxas not found</code>
+
+you can run in the terminal
+
+```
+export CUDA_HOME=/usr/local/cuda-10.1/
+export PATH="${CUDA_HOME}/bin:$PATH" 
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 ```

@@ -89,6 +89,7 @@ if params['network']['num_seg_class'] >0:
 print("OUTPUT_keys, losses: ", len(output_keys), len(losses))
 losses = dict(zip(output_keys, losses))
 
+#assert False
 metric_loss = []
 metric_key = []
 for i in range(1, len(params['train']['data']['mesh_ids'])+1):
@@ -154,7 +155,7 @@ train_ds = train_ds.batch(params['train']['batch_size'])
 val_ds = tf.data.experimental.sample_from_datasets(val_ds_list, weights=val_data_weights)
 val_ds = val_ds.batch(params['train']['batch_size'])
 
-num_train_examples = 1500
+num_train_examples = train_ds_num[0] #1500
 num_val_examples =  val_ds_num[np.argmax(val_data_weights)]/np.max(val_data_weights) 
 print("Number of train, val samples after reweighting: ", num_train_examples, num_val_examples)
 
